@@ -1,32 +1,72 @@
 #include <MIDI.h>
 #include <SPI.h>
 
-#define CS 7
+#define CS 8
 #define dispCount 2
 
 
 MIDI_CREATE_DEFAULT_INSTANCE();
 
 
+//---------ShiftRegisterPins-------------
+
+//Pin connected to ST_CP of 74HC595
+int latchPin = 5;
+//Pin connected to SH_CP of 74HC595
+int clockPin = 6;
+////Pin connected to DS of 74HC595
+int dataPin = 7;
+
+
+
+
+
+
 // -----------------------------------------------------------------------------
 
+//----------------SysEx to Displays----------------
 void SysExHandler(byte* sysexDat, unsigned sysexSize){
   if (sysexDat[6] == 0x11){ //Received time packets
     counterHandler(sysexDat, sysexSize);
   }
 }
 
+//----------------Reply to HUI pings----------------
+void noteOffHandler(byte inChannel, byte inNote, byte inVelocity){
+  if ((inChannel == 0x01)&&(inNote == 0x00)&&(inVelocity == 0x00)) MIDI.sendNoteOn(0x00, 0x7f, 0x01);    
+}
+
+//----------------CC to LEDS----------------
+byte zone = 0x1e; //Initialize a null zone
+void ccHandler(byte inChannel, byte cmd, byte para){
+  switch (cmd) {
+    case 0x0c:
+      zone = para;
+      break;
+    case 0x2c:
+      outputHandler(zone, para);
+      break;
+  }
+}
+
+
+
+
+
+
+//----------------Display Elements----------------
 
 byte counterDigit[8] = {0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F};
 byte counterAddr[8] = {0x01, 0x05, 0x07, 0x03, 0x04, 0x08, 0x06, 0x02};
+byte counterLED = 0x00;
 
 byte tcDigit[8] = {0,0x80,0,0x80,0,0x80,0,0};
 byte tcAddr[8] = {0x01, 0x05, 0x07, 0x03, 0x04, 0x08, 0x06, 0x02};
+byte tcLED = 0x00;
 
+byte led1 = 0x00;
 
-
-
-//int validNums=1, thisValidNums=0, chkValidCsr;
+//----------------HUI Counter----------------
 void counterHandler(byte* sysexDat, unsigned sysexSize){
   int timeCursor;
   if (sysexDat[6] == 0x11){ //Received time packets
@@ -38,6 +78,7 @@ void counterHandler(byte* sysexDat, unsigned sysexSize){
   }
 }
 
+//----------------MTC Display----------------
 byte h, m, s, f;
 byte tcString[8];
 int byteIndex, fmt;
@@ -54,11 +95,44 @@ void mtcHandler(byte qf){
     tcDigit[6] = (tcString[1]*16 + tcString[0])/10;
     tcDigit[7] = (tcString[1]*16 + tcString[0])%10;
     fmt = (tcString[7] >> 1);
-
-    //tcRefresh();
+    tcLED = 0x01 << fmt;
   }
 }
 
+
+
+
+//----------------LED----------------
+void outputHandler(byte zone, byte para){
+  switch (zone){
+    case 0x16:
+      setCounterLED((int)(para & 0x0f), para >> 6);
+      break;
+    default:
+      break;
+     
+  }
+}
+
+
+void setCounterLED(int port, bool state){
+  if (state) counterLED |= (0x01 << port);
+  else counterLED &= ~(0x01 << port);
+}
+
+
+
+//------------Update all display elements------------
+
+void ledRefresh(){
+  //Re-organize led bits
+  led1 = (counterLED & 0x0f) + ((tcLED & 0x0f) << 4);
+  //ground latchPin and hold low for as long as you are transmitting
+  digitalWrite(latchPin, LOW);
+  shiftOut(dataPin, clockPin, MSBFIRST, led1);
+  //return the latch pin high
+  digitalWrite(latchPin, HIGH);
+}
 
 int refCsr;
 void digRefresh(){
@@ -67,7 +141,7 @@ void digRefresh(){
   }
 }
 
-
+//----------------DigitDisplayFunctions----------------
 /*  Write VALUE to register ADDRESS on the MAX7219. */
 void displayWrite(uint8_t addr1, uint8_t value1,uint8_t addr2, uint8_t value2) {
   digitalWrite(CS, LOW); //Toggle enable pin to load MAX7219 shift register
@@ -112,9 +186,9 @@ void allDispWrite(uint8_t addr, uint8_t value) {
 
 
 
-void noteOffHandler(byte inChannel, byte inNote, byte inVelocity){
-  if ((inChannel == 0x01)&&(inNote == 0x00)&&(inVelocity == 0x00)) MIDI.sendNoteOn(127, 0, 1);    
-}
+
+
+
 
 // -----------------------------------------------------------------------------
 
@@ -124,6 +198,7 @@ void setup()
     MIDI.setHandleSystemExclusive(SysExHandler);
     MIDI.setHandleTimeCodeQuarterFrame(mtcHandler);
     MIDI.setHandleNoteOff(noteOffHandler);
+    MIDI.setHandleControlChange(ccHandler);
     
     SPI.setBitOrder(MSBFIRST);
     SPI.begin();
@@ -132,6 +207,13 @@ void setup()
     
     MIDI.begin(MIDI_CHANNEL_OMNI);
     MIDI.turnThruOff();
+
+
+    //set pins to output because they are addressed in the main loop
+    pinMode(latchPin, OUTPUT);
+    pinMode(clockPin, OUTPUT);
+    pinMode(dataPin, OUTPUT);
+    
 
     pinMode(CS, OUTPUT);
     digitalWrite(CS, HIGH);
@@ -149,9 +231,7 @@ void loop()
     // Call MIDI.read the fastest you can for real-time performance.
     MIDI.read();
     digRefresh();
+    ledRefresh();
+    
 
-    // There is no need to check if there are messages incoming
-    // if they are bound to a Callback function.
-    // The attached method will be called automatically
-    // when the corresponding message has been received.
 }
