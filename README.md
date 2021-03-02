@@ -11,6 +11,6 @@
  ## What's next
  To be honest I have no new ideas yet, feel free tell me what function you want to add to this project. All suggestions are welcomed.
  
-## More details on the road!
 
+## 
 **Big thanks to theageman's reverse engineering on Mackie HUI protocol, this project won't be possible without his contribution.**
