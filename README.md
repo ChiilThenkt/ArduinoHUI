@@ -6,9 +6,10 @@
  MIDI signal with HUI protocol and MTC data feeds from serial, to fake an "online" HUI device, the program will reply the host pings.
  
  ## Hardware
- Two 8-digit display driver are daisy chained together, and a 74HC595 shift register to drive 8 mode / framerate indication LEDs.
+ Two MAX7219 8-digit display driver are daisy chained together, communicate with Arduino using SPI, and a 74HC595 shift register to drive 8 mode / framerate indication LEDs.
+ More display or LED drivers can be daisy-chained but mods on codes are needed.
  
- ## What's next
+ ## TODO / What's next
  To be honest I have no new ideas yet, feel free tell me what function you want to add to this project. All suggestions are welcomed.
  
 
