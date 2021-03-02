@@ -1,3 +1,30 @@
+/************************************************************
+ArduinoHUI-master by ChiilThenkt v1.0-alpha
+Support boards: All ATmega328p boards, ATmega32u8 boards, etc.
+
+
+****************Connections (Arduino Uno)****************
+* - Arduino PIN13 : SPI_SCK : MAX7219 PIN13
+* - Arduino PIN22 : SPI_MOSI : MAX7219 PIN1 (The first driver only)
+* - Arduino PIN8 : CS : MAX7219 PIN12
+* 
+* - Arduino PIN5 : LATCH : 74HC595 PIN12
+* - Arduino PIN6 : CLOCK : 74HC595 PIN11
+* - Arduino PIN7 : DATA : 74HC595 PIN14 (The first driver only)
+*
+* - Arduino PIN0(RX) : MIDI_IN
+* - Arduino PIN1(TX) : MIDI_OUT
+*
+* ----USING STANDARD MIDI I/O, BAUDRATE AT 31250----
+* ---CHANGE TO DESIRED RATE IF YOU USE SERIALMIDI---
+*********************************************************
+*
+*
+*Wirtten by ChiilThenkt
+*GitHub Page: https://github.com/ChiilThenkt/ArduinoHUI
+*
+*
+***********************************************************/
 #include <MIDI.h>
 #include <SPI.h>
 
@@ -9,16 +36,9 @@ MIDI_CREATE_DEFAULT_INSTANCE();
 
 
 //---------ShiftRegisterPins-------------
-
-//Pin connected to ST_CP of 74HC595
-int latchPin = 5;
-//Pin connected to SH_CP of 74HC595
-int clockPin = 6;
-////Pin connected to DS of 74HC595
-int dataPin = 7;
-
-
-
+int latchPin = 5; //Pin connected to ST_CP of 74HC595
+int clockPin = 6; //Pin connected to SH_CP of 74HC595
+int dataPin = 7; ////Pin connected to DS of 74HC595
 
 
 
@@ -48,9 +68,6 @@ void ccHandler(byte inChannel, byte cmd, byte para){
       break;
   }
 }
-
-
-
 
 
 
