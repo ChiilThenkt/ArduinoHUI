@@ -1,6 +1,6 @@
 /************************************************************
 ArduinoHUI-master by ChiilThenkt v1.0-alpha
-Support boards: All ATmega328p boards, ATmega32u8 boards, etc.
+Support boards: All ATmega328p boards, ATmega32u4 boards, etc.
 
 
 ****************Connections (Arduino Uno)****************
@@ -15,8 +15,9 @@ Support boards: All ATmega328p boards, ATmega32u8 boards, etc.
 * - Arduino PIN0(RX) : MIDI_IN
 * - Arduino PIN1(TX) : MIDI_OUT
 *
-* ----USING STANDARD MIDI I/O, BAUDRATE AT 31250----
-* ---CHANGE TO DESIRED RATE IF YOU USE SERIALMIDI---
+* --------USING STANDARD MIDI I/O, BAUDRATE AT 31250--------
+* -------CHANGE TO DESIRED RATE IF YOU USE SERIALMIDI-------
+* ---OR FOLLOW COMMENTS TO USE USB MIDI ON SUPPORT BOARDS---
 *********************************************************
 *
 *
@@ -26,6 +27,10 @@ Support boards: All ATmega328p boards, ATmega32u8 boards, etc.
 *
 ***********************************************************/
 #include <MIDI.h>
+//Un-comment below to enable USB MIDI support
+//#include <USB-MIDI.h>
+//NOTICE: This is not the offical MIDIUSB library, instead, Arduino-USBMIDI by lathoub.
+//Link: https://github.com/lathoub/Arduino-USBMIDI
 #include <SPI.h>
 
 #define CS 8
@@ -34,13 +39,14 @@ Support boards: All ATmega328p boards, ATmega32u8 boards, etc.
 
 MIDI_CREATE_DEFAULT_INSTANCE();
 
+//For Leonardo, Pro Micro or other ATmega32u4 microcontrollers, 
+//comment above and uncomment below to use USB MIDI.
+//USBMIDI_CREATE_DEFAULT_INSTANCE(); 
 
 //---------ShiftRegisterPins-------------
-int latchPin = 5; //Pin connected to ST_CP of 74HC595
-int clockPin = 6; //Pin connected to SH_CP of 74HC595
+int clockPin = 5; //Pin connected to SH_CP of 74HC595
+int latchPin = 6; //Pin connected to ST_CP of 74HC595
 int dataPin = 7; ////Pin connected to DS of 74HC595
-
-
 
 // -----------------------------------------------------------------------------
 
@@ -74,11 +80,11 @@ void ccHandler(byte inChannel, byte cmd, byte para){
 //----------------Display Elements----------------
 
 byte counterDigit[8] = {0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F};
-byte counterAddr[8] = {0x01, 0x05, 0x07, 0x03, 0x04, 0x08, 0x06, 0x02};
+byte counterAddr[8] = {0x05, 0x01, 0x07, 0x03, 0x02, 0x06, 0x08, 0x04};
 byte counterLED = 0x00;
 
 byte tcDigit[8] = {0,0x80,0,0x80,0,0x80,0,0};
-byte tcAddr[8] = {0x01, 0x05, 0x07, 0x03, 0x04, 0x08, 0x06, 0x02};
+byte tcAddr[8] = {0x07, 0x05, 0x01, 0x03, 0x02, 0x06, 0x08, 0x04};
 byte tcLED = 0x00;
 
 byte led1 = 0x00;
@@ -112,7 +118,12 @@ void mtcHandler(byte qf){
     tcDigit[6] = (tcString[1]*16 + tcString[0])/10;
     tcDigit[7] = (tcString[1]*16 + tcString[0])%10;
     fmt = (tcString[7] >> 1);
-    tcLED = 0x01 << fmt;
+    switch (fmt) {
+      case 0x00: tcLED = B00000001; break;
+      case 0x01: tcLED = B00000010; break;
+      case 0x02: tcLED = B00001100; break;
+      case 0x03: tcLED = B00000100; break;
+    }
   }
 }
 
@@ -203,10 +214,6 @@ void allDispWrite(uint8_t addr, uint8_t value) {
 
 
 
-
-
-
-
 // -----------------------------------------------------------------------------
 
 void setup()
@@ -219,28 +226,26 @@ void setup()
     
     SPI.setBitOrder(MSBFIRST);
     SPI.begin();
-
-    // Initiate MIDI communications, listen to all channels
     
-    MIDI.begin(MIDI_CHANNEL_OMNI);
-    MIDI.turnThruOff();
-
-
-    //set pins to output because they are addressed in the main loop
+    //Set pins as outputs
     pinMode(latchPin, OUTPUT);
     pinMode(clockPin, OUTPUT);
     pinMode(dataPin, OUTPUT);
-    
-
     pinMode(CS, OUTPUT);
-    digitalWrite(CS, HIGH);
-
+    delay(50);
     allDispWrite(0x09, 0xFF);  //enable onboard bit decode (Mode B)
     allDispWrite(0x0A, 0x0F);  //max intensity
     allDispWrite(0x0B, 0x07);  //display all digits
     allDispWrite(0x0C, 0x01);  //turn on chip
-
+    delay(50);
     digRefresh();
+
+    // Initiate MIDI communications, listen to all channels
+    
+    MIDI.begin(MIDI_CHANNEL_OMNI);
+
+    //USB MIDI doesn't come with thru, comment it if necessary.
+    MIDI.turnThruOff();
 }
 
 void loop()
